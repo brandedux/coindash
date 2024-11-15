@@ -1,2 +1,7 @@
+aiohttp
+asyncio
+kaleido
+pandas
+plotly
+requests
 streamlit
-openai
