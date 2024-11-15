@@ -13,8 +13,8 @@ import base64
 import kaleido
 import pytz
 
-# Initialize cache with 5-minute TTL
-cache = TTLCache(maxsize=100, ttl=300)
+# Initialize cache with 1-minute TTL
+cache = TTLCache(maxsize=100, ttl=60)
 
 # Page configuration 
 st.set_page_config(layout="wide")
@@ -76,7 +76,7 @@ async def fetch_crypto_data():
     """Fetch cryptocurrency data with caching"""
     cache_key = 'crypto_data'
     
-    # Return cached data if available
+    # Return cached data if available and not expired
     if cache_key in cache:
         return cache[cache_key]
     
@@ -154,23 +154,14 @@ def create_sparkline(sparkline_data):
 def display_dashboard(df):
     """Display the cryptocurrency dashboard"""
     with st.sidebar:
-
-        city = "Los_Angeles"
         city = st.sidebar.selectbox(
             "Your Timezone",
             ("New_York", "Chicago", "Los_Angeles"),
-            index=None,
+            index=2,
             placeholder="Los_Angeles",
         )
-        if city == "":
-            timezone = pytz.timezone("America/Los_Angeles")
-        else:
-            timezone = pytz.timezone("America/" + city)
-            
-        
+        timezone = pytz.timezone(f"America/{city}" if city else "America/Los_Angeles")
 
-
-    
     with st.sidebar.expander("Risk Threshold"):
         st.caption("Enter the percentages you want to have highlighted on the dashboard")
         st.text_input("Low", 3)
@@ -183,6 +174,7 @@ def display_dashboard(df):
     local_time = datetime.now(timezone)
     formatted_time = local_time.strftime('%h %d, %Y %I:%M:%S %Z%z')
     st.caption(f"Last updated: {formatted_time}")
+    
     # Base CSS styling for the card layout  
     st.markdown("""
     <style>
@@ -199,7 +191,6 @@ def display_dashboard(df):
             -webkit-box-sizing: border-box;
             padding: 10px;
             margin: 10px 5px;
-            /* background-color: white; */
             border-radius: 24px;
             text-align: center;
             width: 100%;
@@ -223,7 +214,6 @@ def display_dashboard(df):
             padding-top:10px;
         }
         .text {
-            /* color: #000000; */
             margin: 0 auto;
             padding:0;
             text-align:center;
@@ -239,7 +229,6 @@ def display_dashboard(df):
             width: 100%;
         }
     </style>
-    
     """, unsafe_allow_html=True)
     
     # Create grid layout in rows of 4
@@ -252,13 +241,11 @@ def display_dashboard(df):
             border_color = "#C2ED99" if price_change >= 0 else "#E88687"
             border_width = "9px" if abs(price_change) >= 9 else "6px" if abs(price_change) >= 6 else "3px" if abs(price_change) >= 3 else "0px"
             
-            # Generate sparkline SVG
             sparkline_svg = None
             if coin[1].get('sparkline_in_7d'):
                 sparkline_svg = create_sparkline(coin[1]['sparkline_in_7d'])
             
             with col:
-                # Using st.markdown to render HTML for the card structure with embedded sparkline
                 html_content = f'''
                     <div class="card" style="box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box; border: {border_width} solid {border_color};">
                         <img class="logo" src="{coin[1]["image"]}" height="40" width="40" />
@@ -272,28 +259,40 @@ def display_dashboard(df):
                         </div>
                 '''
                 
-                # Add sparkline if available
                 if sparkline_svg:
                     html_content += f'<img src="{sparkline_svg}" class="sparkline" />'
                 
                 html_content += '</div>'
                 col.markdown(html_content, unsafe_allow_html=True)
 
+async def periodic_update():
+    """Periodically update the data"""
+    while True:
+        try:
+            df = await fetch_crypto_data()
+            if df is not None:
+                st.session_state.data = df
+                st.session_state.last_update = datetime.now()
+                st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Update error: {str(e)}")
+        
+        await asyncio.sleep(60)  # Wait 1 minute before next update
 
 def main():
     """Main function to run the Streamlit app"""
     # Initialize session state
     if 'last_update' not in st.session_state:
-        st.session_state.last_update = datetime.now() - timedelta(minutes=6)
-    
-    # Check if it's time to update (every 5 minutes)
+        st.session_state.last_update = datetime.now() - timedelta(minutes=2)
+
+    # Check if it's time to update
     current_time = datetime.now()
-    if (current_time - st.session_state.last_update).total_seconds() >= 300:
+    if (current_time - st.session_state.last_update).total_seconds() >= 60:
         with st.spinner('Updating cryptocurrency data...'):
             df = asyncio.run(fetch_crypto_data())
             if df is not None:
-                st.session_state.last_update = current_time
                 st.session_state.data = df
+                st.session_state.last_update = current_time
     
     # Display dashboard using cached data if available
     if hasattr(st.session_state, 'data'):
