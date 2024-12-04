@@ -17,7 +17,12 @@ import pytz
 cache = TTLCache(maxsize=100, ttl=60)
 
 # Page configuration 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title='Coin ⚡ Dash - Cryptocurrency Dashboard - Track the top 100 cryptos!',
+    page_icon='⚡',
+    layout='wide',
+    initial_sidebar_state='collapsed'
+)
 
 class RateLimiter:
     def __init__(self, max_requests=120, time_window=60):
