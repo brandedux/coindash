@@ -18,7 +18,7 @@ cache = TTLCache(maxsize=100, ttl=60)
 
 # Page configuration 
 st.set_page_config(
-    page_title='Coin ⚡ Dash - Cryptocurrency Dashboard - Track the top 100 cryptos!',
+    page_title='Coin Dash - Cryptocurrency Dashboard - Track the top 100 cryptos!',
     page_icon='⚡',
     layout='wide',
     initial_sidebar_state='collapsed'
